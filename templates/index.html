@@ -1,0 +1,83 @@
+async function processDownload() {
+    const url = document.getElementById('videoUrl').value.trim();
+    const quality = document.getElementById('videoQuality').value;
+
+    if (!url) {
+        alert('দয়া করে প্রথমে একটি ভিডিও লিংক পেস্ট করুন!');
+        return;
+    }
+
+    const resultSection = document.getElementById('resultSection');
+    const mediaTitle = document.getElementById('mediaTitle');
+    const mediaFormatInfo = document.getElementById('mediaFormatInfo');
+    const resultIcon = document.getElementById('resultIcon');
+    const downloadLink = document.getElementById('downloadLink');
+    const progressBar = document.getElementById('progressBar');
+    const progressPercentage = document.getElementById('progressPercentage');
+    const progressStatusText = document.getElementById('progressStatusText');
+    const progressContainer = document.getElementById('progressContainer');
+
+    resultSection.classList.remove('hidden');
+    downloadLink.style.display = 'none';
+    progressContainer.style.display = 'block';
+    mediaTitle.innerText = "সার্ভারে ফাইল প্রসেস ও ডাউনলোড হচ্ছে...";
+    
+    if (selectedFormat === 'video') {
+        mediaFormatInfo.innerText = `ফরম্যাট: ভিডিও (MP4) | কোয়ালিটি: ${quality}p`;
+        resultIcon.className = "fa-solid fa-file-video text-cyan-400";
+    } else {
+        mediaFormatInfo.innerText = `ফরম্যাট: অডিও (MP3) | বিটরেট: ${quality} kbps`;
+        resultIcon.className = "fa-solid fa-file-audio text-cyan-400";
+    }
+
+    // প্রোগ্রেস বার অ্যানিমেশন শুরু
+    let progress = 10;
+    progressBar.style.width = progress + '%';
+    progressPercentage.innerText = progress + '%';
+    progressStatusText.innerText = "ইউটিউব থেকে ডাটা ফেচ করা হচ্ছে...";
+
+    const fakeProgress = setInterval(() => {
+        if (progress < 90) {
+            progress += 10;
+            progressBar.style.width = progress + '%';
+            progressPercentage.innerText = progress + '%';
+        }
+    }, 500);
+
+    try {
+        // ব্যাকএন্ডে রিকোয়েস্ট পাঠানো
+        const response = await fetch('/download', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                url: url,
+                format: selectedFormat,
+                quality: quality
+            })
+        });
+
+        const data = await response.json();
+        clearInterval(fakeProgress);
+
+        if (response.ok && data.success) {
+            progressBar.style.width = '100%';
+            progressPercentage.innerText = '100%';
+            progressStatusText.innerText = "ডাউনলোড সম্পন্ন হয়েছে!";
+            mediaTitle.innerText = data.filename;
+
+            // সরাসরি ফাইল ডাউনলোডের লিংক সেট করা
+            downloadLink.style.display = 'block';
+            downloadLink.href = `/get-file/${encodeURIComponent(data.filename)}`;
+        } else {
+            alert('ত্রুটি: ' + (data.error || 'ডাউনলোড ব্যর্থ হয়েছে।'));
+            resultSection.classList.add('hidden');
+        }
+
+    } catch (error) {
+        clearInterval(fakeProgress);
+        alert('সার্ভারে সংযোগ স্থাপন করা যায়নি!');
+        resultSection.classList.add('hidden');
+    }
+}
